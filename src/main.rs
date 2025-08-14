@@ -4,6 +4,7 @@ mod layout;
 mod clipboard;
 
 use clap::{Arg, ArgAction, Command};
+use std::io::{self, Write};
 use error::Result;
 use config::Config;
 use layout::LayoutConverter;
@@ -22,23 +23,33 @@ fn main() {
                 .action(ArgAction::SetTrue)
                 .help("Show clipboard content and proposed conversion without modifying clipboard")
         )
+        .arg(
+            Arg::new("interactive")
+                .short('i')
+                .long("interactive")
+                .action(ArgAction::SetTrue)
+                .help("Ask for confirmation before applying conversion")
+        )
         .get_matches();
 
     let dry_run = matches.get_flag("dry-run");
+    let interactive = matches.get_flag("interactive");
 
-    if let Err(e) = run(dry_run) {
+    if let Err(e) = run(dry_run, interactive) {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 }
 
-fn run(dry_run: bool) -> Result<()> {
+fn run(dry_run: bool, interactive: bool) -> Result<()> {
     let config = Config::load()?;
     let converter = LayoutConverter::new(config);
     let mut clipboard = ClipboardManager::new()?;
 
     if dry_run {
         run_dry_mode(&converter, &mut clipboard)
+    } else if interactive {
+        run_interactive_mode(&converter, &mut clipboard)
     } else {
         run_normal_mode(&converter, &mut clipboard)
     }
@@ -85,6 +96,62 @@ fn run_dry_mode(converter: &LayoutConverter, clipboard: &mut ClipboardManager) -
     }
 
     Ok(())
+}
+
+fn run_interactive_mode(converter: &LayoutConverter, clipboard: &mut ClipboardManager) -> Result<()> {
+    match clipboard.get_text() {
+        Ok(original) => {
+            let converted = converter.auto_convert(&original)?;
+            
+            if original == converted {
+                println!("No conversion needed - text is already in correct layout");
+                println!("Current clipboard content:");
+                println!("{}", original);
+                return Ok(());
+            }
+            
+            // Show the proposed change
+            println!("Current clipboard content:");
+            println!("{}", original);
+            println!("\nProposed conversion:");
+            println!("{}", converted);
+            
+            // Ask for confirmation
+            if confirm_conversion()? {
+                clipboard.set_text(&converted)?;
+                let original_preview = truncate_string(&original, 10);
+                let converted_preview = truncate_string(&converted, 10);
+                println!("done: \"{}\" --> \"{}\"", original_preview, converted_preview);
+            } else {
+                println!("Conversion cancelled - clipboard unchanged");
+            }
+        }
+        Err(crate::error::ClprsError::EmptyClipboard) => {
+            println!("Empty clipboard");
+        }
+        Err(e) => return Err(e),
+    }
+
+    Ok(())
+}
+
+fn confirm_conversion() -> Result<bool> {
+    loop {
+        print!("\nApply this conversion? (y/n): ");
+        io::stdout().flush().unwrap();
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        match input.trim().to_lowercase().as_str() {
+            "y" | "yes" => return Ok(true),
+            "n" | "no" => return Ok(false),
+            _ => {
+                println!("Please enter 'y' for yes or 'n' for no.");
+                continue;
+            }
+        }
+    }
 }
 
 fn truncate_string(s: &str, max_chars: usize) -> String {
