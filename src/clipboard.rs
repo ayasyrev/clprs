@@ -34,7 +34,7 @@ impl ClipboardManager {
         Ok(())
     }
 
-    pub fn process_clipboard<F>(&mut self, processor: F) -> Result<String>
+    pub fn process_clipboard_with_original<F>(&mut self, processor: F) -> Result<(String, String)>
     where
         F: FnOnce(&str) -> Result<String>,
     {
@@ -46,7 +46,7 @@ impl ClipboardManager {
             self.set_text(&processed_text)?;
         }
         
-        Ok(processed_text)
+        Ok((original_text, processed_text))
     }
 }
 
