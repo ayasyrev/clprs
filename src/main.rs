@@ -20,7 +20,7 @@ fn run() -> Result<()> {
     let converter = LayoutConverter::new(config);
     let mut clipboard = ClipboardManager::new()?;
 
-    let result = clipboard.process_clipboard(|text| {
+    let _result = clipboard.process_clipboard(|text| {
         converter.auto_convert(text)
     })?;
 

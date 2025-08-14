@@ -15,7 +15,7 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LayoutMapping {
     pub name: String,
-    pub char_map: HashMap<char, char>,
+    pub char_map: HashMap<String, String>,
 }
 
 impl Default for Config {
@@ -28,8 +28,8 @@ impl Default for Config {
         let en_chars = "qwertyuiop[]asdfghjkl;'zxcvbnm,.`";
         
         for (ru, en) in ru_chars.chars().zip(en_chars.chars()) {
-            ru_en_map.insert(ru, en);
-            ru_en_map.insert(ru.to_uppercase().next().unwrap(), en.to_uppercase().next().unwrap());
+            ru_en_map.insert(ru.to_string(), en.to_string());
+            ru_en_map.insert(ru.to_uppercase().to_string(), en.to_uppercase().to_string());
         }
         
         layout_mappings.insert("ru_to_en".to_string(), LayoutMapping {
@@ -38,7 +38,7 @@ impl Default for Config {
         });
         
         // Reverse mapping for English -> Russian
-        let en_ru_map: HashMap<char, char> = ru_en_map.iter().map(|(k, v)| (*v, *k)).collect();
+        let en_ru_map: HashMap<String, String> = ru_en_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
         layout_mappings.insert("en_to_ru".to_string(), LayoutMapping {
             name: "English to Russian".to_string(),
             char_map: en_ru_map,

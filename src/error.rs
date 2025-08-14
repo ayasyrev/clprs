@@ -14,14 +14,8 @@ pub enum ClprsError {
     #[error("Serialization error: {0}")]
     SerializationError(#[from] toml::de::Error),
 
-    #[error("Layout detection failed: no valid layout found")]
-    LayoutDetectionError,
-
     #[error("Empty clipboard")]
     EmptyClipboard,
-
-    #[error("Non-text content in clipboard")]
-    NonTextContent,
 }
 
 pub type Result<T> = std::result::Result<T, ClprsError>;

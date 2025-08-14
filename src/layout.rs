@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::config::Config;
 use crate::error::Result;
 
@@ -28,7 +27,11 @@ impl LayoutConverter {
 
         if let Some(layout_mapping) = self.config.layout_mappings.get(mapping_key) {
             let converted = text.chars()
-                .map(|c| layout_mapping.char_map.get(&c).copied().unwrap_or(c))
+                .map(|c| {
+                    layout_mapping.char_map.get(&c.to_string())
+                        .map(|s| s.chars().next().unwrap_or(c))
+                        .unwrap_or(c)
+                })
                 .collect();
             Ok(converted)
         } else {
