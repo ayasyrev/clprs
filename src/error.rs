@@ -16,6 +16,9 @@ pub enum ClprsError {
 
     #[error("Empty clipboard")]
     EmptyClipboard,
+
+    #[error("No previous clipboard content to restore")]
+    NoPreviousContent,
 }
 
 pub type Result<T> = std::result::Result<T, ClprsError>;
