@@ -93,6 +93,10 @@ impl ClipboardManager {
         self.previous_content.is_some()
     }
 
+    pub fn get_previous_content(&self) -> Option<String> {
+        self.previous_content.clone()
+    }
+
     pub fn set_text_with_backup(&mut self, original: &str, new_text: &str) -> Result<()> {
         // Backup the original text before replacing
         self.save_backup(original)?;

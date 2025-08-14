@@ -166,8 +166,15 @@ fn confirm_conversion() -> Result<bool> {
 
 fn run_undo_mode(clipboard: &mut ClipboardManager) -> Result<()> {
     if clipboard.has_previous() {
+        let restored_content = clipboard.get_previous_content();
         clipboard.restore_previous()?;
-        println!("Previous clipboard content restored");
+        
+        if let Some(content) = restored_content {
+            let preview = truncate_string(&content, 10);
+            println!("Previous clipboard content restored: \"{}\"", preview);
+        } else {
+            println!("Previous clipboard content restored");
+        }
     } else {
         println!("No previous clipboard content to restore");
     }
