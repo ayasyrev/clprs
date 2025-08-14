@@ -50,10 +50,24 @@ impl LayoutConverter {
                 if self.is_more_likely_russian(&ru_converted) {
                     Ok(ru_converted)
                 } else {
+                    // No conversion needed - return original text
                     Ok(text.to_string())
                 }
             }
-            _ => Ok(text.to_string()),
+            _ => {
+                // For unknown/mixed layouts, still try English->Russian conversion
+                // as it might be Latin chars representing Russian words
+                if self.is_likely_latin_representing_russian(text) {
+                    let ru_converted = self.convert_text(text, Layout::English, Layout::Russian)?;
+                    if self.is_more_likely_russian(&ru_converted) {
+                        Ok(ru_converted)
+                    } else {
+                        Ok(text.to_string())
+                    }
+                } else {
+                    Ok(text.to_string())
+                }
+            }
         }
     }
 
@@ -107,7 +121,7 @@ impl LayoutConverter {
         }
         
         // Also check for common Russian words
-        let common_words = ["что", "это", "как", "все", "для", "или", "его", "она", "они"];
+        let common_words = ["что", "это", "как", "все", "для", "или", "его", "она", "они", "привет", "пока", "спасибо"];
         for word in &common_words {
             if text.contains(word) {
                 pattern_count += 2; // Weight common words more heavily
@@ -115,6 +129,46 @@ impl LayoutConverter {
         }
         
         pattern_count > 0
+    }
+
+    fn is_likely_latin_representing_russian(&self, text: &str) -> bool {
+        // Check if the text contains only ASCII characters that could represent Russian
+        let mut ascii_count = 0;
+        let mut total_alpha = 0;
+        
+        for c in text.chars() {
+            if c.is_alphabetic() {
+                total_alpha += 1;
+                if c.is_ascii_alphabetic() {
+                    ascii_count += 1;
+                }
+            }
+        }
+        
+        // If most alphabetic characters are ASCII, it might be Latin representing Russian
+        if total_alpha > 0 && (ascii_count as f32 / total_alpha as f32) >= 0.8 {
+            // Additional heuristic: check for patterns that commonly occur 
+            // when typing Russian words on English layout
+            let latin_russian_patterns = ["gh", "tn", "yf", "jk", "hj", "yr"];
+            for pattern in &latin_russian_patterns {
+                if text.contains(pattern) {
+                    return true;
+                }
+            }
+            
+            // Also try converting and see if it produces recognizable patterns
+            if let Ok(converted) = self.convert_text(text, Layout::English, Layout::Russian) {
+                if self.contains_cyrillic(&converted) {
+                    return true;
+                }
+            }
+        }
+        
+        false
+    }
+
+    fn contains_cyrillic(&self, text: &str) -> bool {
+        text.chars().any(|c| self.is_cyrillic(c))
     }
 }
 
@@ -140,5 +194,56 @@ mod tests {
         
         let result = converter.convert_text("руддщ", Layout::Russian, Layout::English).unwrap();
         assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_english_to_russian_conversion() {
+        let config = Config::default();
+        let converter = LayoutConverter::new(config);
+        
+        let result = converter.convert_text("hello", Layout::English, Layout::Russian).unwrap();
+        assert_eq!(result, "руддщ");
+    }
+
+    #[test] 
+    fn test_auto_convert_latin_to_russian() {
+        let config = Config::default();
+        let converter = LayoutConverter::new(config);
+        
+        // Test common Russian words typed in Latin layout
+        let result = converter.auto_convert("ghbdtn").unwrap();
+        assert_eq!(result, "привет");
+        
+        let result = converter.auto_convert("gjrf").unwrap();
+        assert_eq!(result, "пока");
+        
+        let result = converter.auto_convert("ghbdtn vbh").unwrap();
+        assert_eq!(result, "привет мир");
+    }
+
+    #[test]
+    fn test_auto_convert_russian_to_latin() {
+        let config = Config::default();
+        let converter = LayoutConverter::new(config);
+        
+        // Test Russian text conversion to Latin
+        let result = converter.auto_convert("привет").unwrap();
+        assert_eq!(result, "ghbdtn");
+        
+        let result = converter.auto_convert("привет мир").unwrap();
+        assert_eq!(result, "ghbdtn vbh");
+    }
+
+    #[test]
+    fn test_no_conversion_for_normal_english() {
+        let config = Config::default();
+        let converter = LayoutConverter::new(config);
+        
+        // Normal English words should not be converted
+        let result = converter.auto_convert("hello world").unwrap();
+        assert_eq!(result, "hello world");
+        
+        let result = converter.auto_convert("test").unwrap();
+        assert_eq!(result, "test");
     }
 }
