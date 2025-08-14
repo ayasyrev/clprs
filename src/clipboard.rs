@@ -26,6 +26,11 @@ impl ClipboardManager {
 
     pub fn set_text(&mut self, text: &str) -> Result<()> {
         self.clipboard.set_text(text)?;
+        
+        // Keep clipboard alive longer on Linux to ensure clipboard managers see the contents
+        #[cfg(target_os = "linux")]
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        
         Ok(())
     }
 
