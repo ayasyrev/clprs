@@ -13,7 +13,7 @@ fn main() {
     let matches = Command::new("clprs")
         .about("Clipboard layout correction tool")
         .long_about("Clprs (Clipper) reads text from clipboard, detects keyboard layout issues, and corrects them automatically. Primarily designed for Russian ↔ English layout conversion.")
-        .version("0.1.0")
+        .version("0.1.1")
         .author("Clprs Development Team")
         .arg(
             Arg::new("dry-run")
