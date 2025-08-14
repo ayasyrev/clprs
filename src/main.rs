@@ -30,23 +30,33 @@ fn main() {
                 .action(ArgAction::SetTrue)
                 .help("Ask for confirmation before applying conversion")
         )
+        .arg(
+            Arg::new("undo")
+                .short('u')
+                .long("undo")
+                .action(ArgAction::SetTrue)
+                .help("Restore previous clipboard content")
+        )
         .get_matches();
 
     let dry_run = matches.get_flag("dry-run");
     let interactive = matches.get_flag("interactive");
+    let undo = matches.get_flag("undo");
 
-    if let Err(e) = run(dry_run, interactive) {
+    if let Err(e) = run(dry_run, interactive, undo) {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 }
 
-fn run(dry_run: bool, interactive: bool) -> Result<()> {
+fn run(dry_run: bool, interactive: bool, undo: bool) -> Result<()> {
     let config = Config::load()?;
     let converter = LayoutConverter::new(config);
     let mut clipboard = ClipboardManager::new()?;
 
-    if dry_run {
+    if undo {
+        run_undo_mode(&mut clipboard)
+    } else if dry_run {
         run_dry_mode(&converter, &mut clipboard)
     } else if interactive {
         run_interactive_mode(&converter, &mut clipboard)
@@ -118,7 +128,7 @@ fn run_interactive_mode(converter: &LayoutConverter, clipboard: &mut ClipboardMa
             
             // Ask for confirmation
             if confirm_conversion()? {
-                clipboard.set_text(&converted)?;
+                clipboard.set_text_with_backup(&original, &converted)?;
                 let original_preview = truncate_string(&original, 10);
                 let converted_preview = truncate_string(&converted, 10);
                 println!("done: \"{}\" --> \"{}\"", original_preview, converted_preview);
@@ -152,6 +162,16 @@ fn confirm_conversion() -> Result<bool> {
             }
         }
     }
+}
+
+fn run_undo_mode(clipboard: &mut ClipboardManager) -> Result<()> {
+    if clipboard.has_previous() {
+        clipboard.restore_previous()?;
+        println!("Previous clipboard content restored");
+    } else {
+        println!("No previous clipboard content to restore");
+    }
+    Ok(())
 }
 
 fn truncate_string(s: &str, max_chars: usize) -> String {
